@@ -14,7 +14,7 @@ from django.contrib.auth import (
 
 
 # Create your views here.
-
+#TODO: 加入jwt djangorestframework auth加强认证
 
 class UserViewSet(viewsets.ModelViewSet):
 
