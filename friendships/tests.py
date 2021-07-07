@@ -1,6 +1,7 @@
-from testing import TestCase
+from testing.testcases import TestCase
 from rest_framework.test import APIClient
 from .models import Friendships
+from rest_framework import status
 
 FOLLOW_URL = '/api/friendships/{}/follow/'
 UNFOLLOW_URL = '/api/friendships/{}/unfollow/'
@@ -11,7 +12,7 @@ FOLLOWINGS_URL = '/api/friendships/{}/followings/'
 class FriendshipsApiTests(TestCase):
 
     def setUp(self):
-        self.anonymous_client = APIClient()
+        # self._anonymous_client = APIClient()
 
         self.alex = self.create_user('alex')
         self.alex_client = APIClient()
@@ -59,13 +60,13 @@ class FriendshipsApiTests(TestCase):
 
         # 需要登录才能 unfollow 别人
         response = self.anonymous_client.post(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         # 不能用 get 来 unfollow 别人
         response = self.bob_client.get(url)
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
         # 不能用 unfollow 自己
         response = self.alex_client.post(url)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # unfollow 成功
         Friendships.objects.create(from_user=self.bob, to_user=self.alex)
         count = Friendships.objects.count()

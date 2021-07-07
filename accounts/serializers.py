@@ -22,7 +22,7 @@ class LoginSerializer(serializers.Serializer):
 class SignupSerializer(serializers.Serializer):
 
     username = serializers.CharField(max_length=20, min_length=6)
-    password = serializers.CharField()
+    password = serializers.CharField(max_length=20, min_length=6)
     email = serializers.EmailField()
 
     class Meta:
