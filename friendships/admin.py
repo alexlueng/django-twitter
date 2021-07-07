@@ -10,3 +10,5 @@ class FriendshipAdmin(admin.ModelAdmin):
         'to_user',
         'created_at',
     )
+
+    
