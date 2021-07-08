@@ -88,6 +88,14 @@ class TweetApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data['comments']), 2)
 
+    def test_tweet_comment(self):
+        tweet = self.create_tweet(self.user1,  "test tweet")
+        # comment = sample_comment(self.alex, tweet, content='111')
+        self.create_like(self.user1, tweet)
+        self.assertEqual(tweet.like_set.count(), 1)
+
+        self.create_like(self.user2, tweet)
+        self.assertEqual(tweet.like_set.count(), 2)
 
 
 

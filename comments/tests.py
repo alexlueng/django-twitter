@@ -155,6 +155,16 @@ class CommentApiTests(TestCase):
 
         res = self.anonymous_client.get(COMMENT_URL, {'tweet_id': tweet.id, 'user_id': self.bob.id})
         self.assertEqual(len(res.data['comments']), 2)
+
+    
+    def test_like_set(self):
+        tweet = self.create_tweet(self.alex,  "test tweet")
+        comment = sample_comment(self.alex, tweet, content='111')
+        self.create_like(self.alex, comment)
+        self.assertEqual(comment.like_set.count(), 1)
+
+        self.create_like(self.bob, comment)
+        self.assertEqual(comment.like_set.count(), 2)
         
 
 
