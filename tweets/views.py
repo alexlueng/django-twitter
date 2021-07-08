@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from .models import Tweet
 from .serializers import TweetSerializer, TweetCreateSerializer
 from newsfeeds.services import NewsFeedService
+from utils.decorator import required_params
 
 
 class TweetViewSet(viewsets.GenericViewSet, 
@@ -34,9 +35,10 @@ class TweetViewSet(viewsets.GenericViewSet,
         return Response(TweetSerializer(tweet).data, status=201)
 
     # 获取一个用户的所有推文
+    @required_params(params=['user_id'])
     def list(self, request, *args, **kwargs):
-        if 'user_id' not in request.query_params:
-            return Response('missing user_id', status=400)
+        # if 'user_id' not in request.query_params:
+        #     return Response('missing user_id', status=400)
 
         tweets = Tweet.objects.filter(user_id=request.query_params['user_id']).order_by('-created_at')
         serializer = TweetSerializer(tweets, many=True)
