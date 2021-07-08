@@ -1,5 +1,3 @@
-from django.http import response
-from django.urls import reverse
 from rest_framework.test import APIClient
 from testing.testcases import TestCase
 
@@ -15,9 +13,6 @@ def sample_comment(user, tweet, content="sample content"):
         tweet=tweet,
         content=content
     )
-
-def detail_url(comment_id):
-    return reverse('comments:comment-detail', args=[comment_id])
 
 class CommentModelTests(TestCase):
     def test_comment_str(self):
