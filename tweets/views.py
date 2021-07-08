@@ -2,7 +2,7 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import Tweet
-from .serializers import TweetSerializer, TweetCreateSerializer
+from .serializers import TweetSerializer, TweetCreateSerializer, TweetSerializerWithComments
 from newsfeeds.services import NewsFeedService
 from utils.decorator import required_params
 
@@ -14,7 +14,7 @@ class TweetViewSet(viewsets.GenericViewSet,
     serializer_class = TweetCreateSerializer
 
     def get_permissions(self):
-        if self.action == 'list':
+        if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [IsAuthenticated()]
 
@@ -43,3 +43,9 @@ class TweetViewSet(viewsets.GenericViewSet,
         tweets = Tweet.objects.filter(user_id=request.query_params['user_id']).order_by('-created_at')
         serializer = TweetSerializer(tweets, many=True)
         return Response({'tweets': serializer.data})
+
+
+    # 获取一条带评论的tweet
+    def retrieve(self, request, *args, **kwargs):
+        tweet = self.get_object()
+        return Response(TweetSerializerWithComments(tweet).data)

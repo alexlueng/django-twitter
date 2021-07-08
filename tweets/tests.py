@@ -4,9 +4,11 @@ from django.contrib.auth.models import User
 from tweets.models import Tweet
 from datetime import timedelta
 from utils.time_helpers import utc_now
+from rest_framework import status
 
 TWEET_LIST_API = '/api/tweets/'
 TWEET_CREATE_API = '/api/tweets/'
+TWEET_RETRIEVE_API = '/api/tweets/{}/'
 
 class TweetTests(TestCase):
     def test_hours_to_now(self):
@@ -64,6 +66,27 @@ class TweetApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['user']['id'], self.user1.id)
         self.assertEqual(Tweet.objects.count(), tweets_count+1)
+
+    def test_get_tweet_with_comments_with_invalid_tweet_id(self):
+        url = TWEET_RETRIEVE_API.format(-1)
+        res = self.anonymous_client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+    def test_get_tweet_with_comments(self):
+        tweet = self.create_tweet(self.user1)
+        url = TWEET_RETRIEVE_API.format(tweet.id)
+        res = self.anonymous_client.get(url)
+        
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['comments']), 0)
+        
+        self.create_comment(self.user1, tweet, content='comment test1')
+        self.create_comment(self.user2, tweet, content='comment test2')
+
+        res = self.anonymous_client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['comments']), 2)
 
 
 
