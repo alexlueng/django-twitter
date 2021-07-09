@@ -9,6 +9,8 @@ from rest_framework import status
 TWEET_LIST_API = '/api/tweets/'
 TWEET_CREATE_API = '/api/tweets/'
 TWEET_RETRIEVE_API = '/api/tweets/{}/'
+LIKE_BASE_URL = '/api/likes/'
+
 
 class TweetTests(TestCase):
     def test_hours_to_now(self):
@@ -31,6 +33,8 @@ class TweetApiTests(TestCase):
         self.user1_client.force_authenticate(self.user1)
 
         self.user2 = self.create_user('user2', 'user2@example.com')
+        self.user2_client = APIClient()
+        self.user2_client.force_authenticate(self.user2)
         self.tweet2 = [self.create_tweet(self.user2, "hello world") for i in range(2)]
 
 
@@ -49,7 +53,6 @@ class TweetApiTests(TestCase):
 
     def test_create_api(self):
         response = self.anonymous_client.post(TWEET_CREATE_API)
-        print(response)
         self.assertEqual(response.status_code, 403)
 
         response = self.user1_client.post(TWEET_CREATE_API)
@@ -72,7 +75,6 @@ class TweetApiTests(TestCase):
         res = self.anonymous_client.get(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
-
     def test_get_tweet_with_comments(self):
         tweet = self.create_tweet(self.user1)
         url = TWEET_RETRIEVE_API.format(tweet.id)
@@ -88,7 +90,7 @@ class TweetApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data['comments']), 2)
 
-    def test_tweet_comment(self):
+    def test_tweet_likes(self):
         tweet = self.create_tweet(self.user1,  "test tweet")
         # comment = sample_comment(self.alex, tweet, content='111')
         self.create_like(self.user1, tweet)
@@ -96,6 +98,62 @@ class TweetApiTests(TestCase):
 
         self.create_like(self.user2, tweet)
         self.assertEqual(tweet.like_set.count(), 2)
+
+    def test_tweet_comment_counts(self):
+        tweet = self.create_tweet(self.user1,  "test tweet")
+        self.create_comment(self.user2, tweet, content='111')
+
+        res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['tweets'][0]['comments_count'], 1)
+
+
+        self.create_comment(self.user1, tweet, content='222')
+        res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['tweets'][0]['comments_count'], 2)
+
+
+    
+    def test_tweet_has_liked(self):
+
+        tweet = self.create_tweet(self.user1,  "test tweet")
+        # comment = sample_comment(self.alex, tweet, content='111')
+
+        payload = {
+            'content_type': 'tweet',
+            'object_id': tweet.id,
+        }
+        self.user2_client.post(LIKE_BASE_URL, payload)
+
+        tweet.refresh_from_db()
+
+        res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['tweets'][0]['has_liked'], False)
+
+        res = self.user2_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['tweets'][0]['has_liked'], True)
+
+    def test_tweet_likes_count(self):
+        tweet = self.create_tweet(self.user1,  "test tweet")
+        # comment = self.create_comment(self.user2, tweet, content='111')
+
+        payload = {
+            'content_type': 'tweet',
+            'object_id': tweet.id,
+        }
+        self.user2_client.post(LIKE_BASE_URL, payload)
+
+        res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['tweets'][0]['likes_count'], 1)
+
+        self.user1_client.post(LIKE_BASE_URL, payload)
+        res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['tweets'][0]['likes_count'], 2)
 
 
 

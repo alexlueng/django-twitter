@@ -6,6 +6,7 @@ from rest_framework import status
 from .models import Comment
 
 COMMENT_URL = '/api/comments/'
+LIKE_BASE_URL = '/api/likes/'
 
 def sample_comment(user, tweet, content="sample content"):
     return Comment.objects.create(
@@ -165,8 +166,47 @@ class CommentApiTests(TestCase):
 
         self.create_like(self.bob, comment)
         self.assertEqual(comment.like_set.count(), 2)
-        
 
+
+    def test_comment_has_liked(self):
+
+        tweet = self.create_tweet(self.alex,  "test tweet")
+        comment = sample_comment(self.alex, tweet, content='111')
+
+        payload = {
+            'content_type': 'comment',
+            'object_id': comment.id,
+        }
+        self.bob_client.post(LIKE_BASE_URL, payload)
+
+        comment.refresh_from_db()
+
+        res = self.anonymous_client.get(COMMENT_URL, {'tweet_id': tweet.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['comments'][0]['has_liked'], False)
+
+        res = self.bob_client.get(COMMENT_URL, {'tweet_id': tweet.id, 'user_id': self.bob.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['comments'][0]['has_liked'], True)
+
+    def test_comment_likes_count(self):
+        tweet = self.create_tweet(self.alex,  "test tweet")
+        comment = sample_comment(self.alex, tweet, content='111')
+
+        payload = {
+            'content_type': 'comment',
+            'object_id': comment.id,
+        }
+        self.bob_client.post(LIKE_BASE_URL, payload)
+
+        res = self.anonymous_client.get(COMMENT_URL, {'tweet_id': tweet.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['comments'][0]['likes_count'], 1)
+
+        self.alex_client.post(LIKE_BASE_URL, payload)
+        res = self.anonymous_client.get(COMMENT_URL, {'tweet_id': tweet.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['comments'][0]['likes_count'], 2)
 
     
     

@@ -2,7 +2,7 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import Tweet
-from .serializers import TweetSerializer, TweetCreateSerializer, TweetSerializerWithComments
+from .serializers import TweetSerializer, TweetCreateSerializer, TweetSerializerForDetail
 from newsfeeds.services import NewsFeedService
 from utils.decorator import required_params
 
@@ -32,7 +32,7 @@ class TweetViewSet(viewsets.GenericViewSet,
             }, status=400)
         tweet = serializer.save()
         NewsFeedService.fanout_to_followers(tweet)
-        return Response(TweetSerializer(tweet).data, status=201)
+        return Response(TweetSerializer(tweet, context={'request': request}).data, status=201)
 
     # 获取一个用户的所有推文
     @required_params(params=['user_id'])
@@ -41,11 +41,11 @@ class TweetViewSet(viewsets.GenericViewSet,
         #     return Response('missing user_id', status=400)
 
         tweets = Tweet.objects.filter(user_id=request.query_params['user_id']).order_by('-created_at')
-        serializer = TweetSerializer(tweets, many=True)
+        serializer = TweetSerializer(tweets, context={'request': request}, many=True)
         return Response({'tweets': serializer.data})
 
 
     # 获取一条带评论的tweet
     def retrieve(self, request, *args, **kwargs):
         tweet = self.get_object()
-        return Response(TweetSerializerWithComments(tweet).data)
+        return Response(TweetSerializerForDetail(tweet, context={'request': request}).data)
