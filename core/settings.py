@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     
     # third party
     'rest_framework',
-    'django_filters'
+    'django_filters',
+    'notifications',
 ]
 
 REST_FRAMEWORK = {

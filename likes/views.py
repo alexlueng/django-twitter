@@ -6,6 +6,7 @@ from .serializers import LikeSerializer, LikeSerializerForCancel, LikeSerializer
 from utils.decorator import required_params
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from inbox.services import NotificationService
 
 
 class LikeViewSet(GenericViewSet):
@@ -25,7 +26,9 @@ class LikeViewSet(GenericViewSet):
                 'errors': serializer.errors,
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        instance = serializer.save()
+        instance, created = serializer.get_or_create()
+        if created:
+            NotificationService.send_like_notification(instance)
         return Response(
             LikeSerializer(instance).data,
             status=status.HTTP_201_CREATED
