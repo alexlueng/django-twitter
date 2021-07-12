@@ -8,6 +8,7 @@ from friendships.views import FriendshipViewSet
 from newsfeeds.views import NewsFeedViewSet
 from comments.views import CommentViewSet
 from likes.views import LikeViewSet
+from inbox.views import NotificationViewSet
 
 router = routers.DefaultRouter()
 router.register(r'api/users', UserViewSet)
@@ -17,6 +18,7 @@ router.register(r'api/friendships', FriendshipViewSet, basename='friendships')
 router.register(r'api/newsfeeds', NewsFeedViewSet, basename='newsfeeds')
 router.register(r'api/comments', CommentViewSet, basename='comments')
 router.register(r'api/likes', LikeViewSet, basename='likes')
+router.register(r'api/notifications', NotificationViewSet, basename='notifications')
 
 
 urlpatterns = [
