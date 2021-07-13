@@ -1,3 +1,4 @@
+from accounts.models import UserProfile
 from django.contrib.auth.models import User
 from rest_framework import viewsets
 from rest_framework import serializers
@@ -5,13 +6,13 @@ from rest_framework.decorators import action
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
-from accounts.serializers import LoginSerializer, SignupSerializer, UserSerializer
+from accounts.serializers import LoginSerializer, SignupSerializer, UserProfileSerializerForUpdate, UserSerializer
 from django.contrib.auth import (
     authenticate as django_authenticate,
     login as django_login,
     logout as django_logout,
 )
-
+from utils.permissions import IsObjectOwner
 
 # Create your views here.
 #TODO: 加入jwt djangorestframework auth加强认证
@@ -98,3 +99,18 @@ class AccountViewSet(viewsets.ViewSet):
                 "success": True,
                 "user": UserSerializer(user).data,
             }, status=201)
+
+    @action(methods=['GET'], detail=False)
+    def login_status(self, request, *args, **kwargs):
+        data = {'has_logged_in': request.user.is_authenticated}
+        if request.user.is_authenticated:
+            data['user'] = UserSerializer(request.user).data
+        return Response(data)
+
+
+class UserProfileViewSet(viewsets.GenericViewSet,
+                        viewsets.mixins.UpdateModelMixin):
+
+    queryset = UserProfile
+    permission_classes = (IsObjectOwner,)
+    serializer_class = UserProfileSerializerForUpdate

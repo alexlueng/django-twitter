@@ -2,7 +2,7 @@ from friendships.models import Friendships
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
-from accounts.views import AccountViewSet, UserViewSet
+from accounts.views import AccountViewSet, UserViewSet, UserProfileViewSet
 from tweets.views import TweetViewSet
 from friendships.views import FriendshipViewSet
 from newsfeeds.views import NewsFeedViewSet
@@ -19,7 +19,7 @@ router.register(r'api/newsfeeds', NewsFeedViewSet, basename='newsfeeds')
 router.register(r'api/comments', CommentViewSet, basename='comments')
 router.register(r'api/likes', LikeViewSet, basename='likes')
 router.register(r'api/notifications', NotificationViewSet, basename='notifications')
-
+router.register(r'api/profiles', UserProfileViewSet, basename='profiles')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

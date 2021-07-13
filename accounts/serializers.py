@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework import exceptions
 from django.contrib.auth.models import User
+from .models import UserProfile
 
 class UserSerializer(serializers.ModelSerializer):
 
@@ -12,6 +13,34 @@ class UserSerializer(serializers.ModelSerializer):
         # url是默认值， 可在settings.py中设置URL_FIELD_NAME使全局生效
 
         fields = ('id', 'username', 'email')
+
+class UserSerializerWithProfile(UserSerializer):
+
+    nickname = serializers.CharField(source='profile.nickname')
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        if obj.profile.avatar:
+            return obj.profile.avatar.url
+        return None
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'nickname', 'avatar')
+
+
+class UserSerializerForTweet(UserSerializerWithProfile):
+    pass
+
+class UserSerializerForComment(UserSerializerWithProfile):
+    pass
+
+class UserSerializerForFriendship(UserSerializerWithProfile):
+    pass
+
+class UserSerializerForLike(UserSerializerWithProfile):
+    pass
+
 
 
 class LoginSerializer(serializers.Serializer):
@@ -54,3 +83,10 @@ class SignupSerializer(serializers.Serializer):
         )
 
         return user
+
+
+class UserProfileSerializerForUpdate(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserProfile
+        fields = ('nickname', 'avatar')

@@ -1,11 +1,14 @@
 from testing.testcases import TestCase
 from rest_framework.test import APIClient
 from .models import UserProfile
+from rest_framework import status
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 LOGIN_URL = '/api/accounts/login/'
 LOGOUT_URL = '/api/accounts/logout/'
 SIGNUP_URL = '/api/accounts/signup/'
 LOGIN_STATUS_URL = '/api/accounts/login_status/'
+USER_PROFILE_DETAIL_URL = '/api/profiles/{}/'
 
 
 class AccountApiTests(TestCase):
@@ -130,9 +133,48 @@ class AccountApiTests(TestCase):
 
 
 class UserProfileTests(TestCase):
+
+    def setUp(self):
+        self.alex = self.create_user('alex')
+        self.alex_client = APIClient()
+        self.alex_client.force_authenticate(self.alex)
+
     def test_profile_property(self):
-        alex = self. create_user('alex')
+        # alex = self. create_user('alex')
         self.assertEqual(UserProfile.objects.count(), 0)
-        p = alex.profile
+        p = self.alex.profile
         self.assertEqual(isinstance(p, UserProfile), True)
         self.assertEqual(UserProfile.objects.count(), 1)
+
+    def test_user_update_profile_nickname(self):
+        """
+            /api/profile/{}/
+        """
+        p = self.alex.profile
+        p.nickname = 'old nickname'
+        p.save()
+        
+        url = USER_PROFILE_DETAIL_URL.format(p.id)
+        res = self.alex_client.put(url, {'nickname': 'new nickname'})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        p.refresh_from_db()
+        self.assertEqual(p.nickname, 'new nickname')
+
+    def test_user_update_profile_avatar(self):
+        p = self.alex.profile
+        self.assertEqual(p.avatar, None)
+
+        url = USER_PROFILE_DETAIL_URL.format(p.id)
+        res = self.alex_client.put(url, {
+            'avatar': SimpleUploadedFile(
+                name='my-avatar.jpg',
+                content=str.encode('a fake image'),
+                content_type='image/jpeg'
+            )
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual('my-avatar' in res.data['avatar'], True)
+        p.refresh_from_db()
+        self.assertIsNotNone(p.avatar)
+        
+        
