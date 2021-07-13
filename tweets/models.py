@@ -1,3 +1,5 @@
+from tweets.constants import TWEET_PHOTO_STATUS_CHOICES, TweetPhotoStatus
+from typing import Set
 from django.db import models
 from django.contrib.auth.models import User
 from likes.models import Like
@@ -27,3 +29,31 @@ class Tweet(models.Model):
             content_type=ContentType.objects.get_for_model(Tweet),
             object_id=self.id,
         ).order_by('-created_at')
+
+
+class TweetPhoto(models.Model):
+    tweet = models.ForeignKey(Tweet, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    file = models.FileField()
+    order = models.IntegerField(default=0)
+
+    status = models.IntegerField(
+        default=TweetPhotoStatus.PENDING,
+        choices=TWEET_PHOTO_STATUS_CHOICES,
+    )
+
+    has_deleted = models.BooleanField(default=False) # 软删除，真正的删除在后台异步执行
+    deleted_at = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+
+    class Meta:
+        index_together = (
+            ('user', 'created_at'),
+            ('has_deleted', 'created_at'),
+            ('status', 'created_at'),
+            ('tweet', 'order'),
+        )
+
+    def __srt__(self):
+        return f'{self.tweet_id}: {self.file}'

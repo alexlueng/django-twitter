@@ -1,10 +1,12 @@
 from rest_framework.test import APIClient
 from testing.testcases import TestCase
 from django.contrib.auth.models import User
-from tweets.models import Tweet
+from tweets.models import Tweet, TweetPhoto
 from datetime import timedelta
 from utils.time_helpers import utc_now
 from rest_framework import status
+from .constants import TweetPhotoStatus
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 TWEET_LIST_API = '/api/tweets/'
 TWEET_CREATE_API = '/api/tweets/'
@@ -166,6 +168,63 @@ class TweetApiTests(TestCase):
         self.assertEqual(res.data['user']['avatar_url'], None)
 
 
+class TweetPhotoApiTests(TestCase):
+
+    def setUp(self):
+        self.alex = self.create_user('alex')
+        self.alex_client = APIClient()
+        self.alex_client.force_authenticate(self.alex)
+        self.tweet = self.create_tweet(self.alex)
+
+    def test_tweet_photo_created(self):
+        photo = TweetPhoto.objects.create(
+            tweet=self.tweet,
+            user=self.alex
+        )
+
+        self.assertEqual(photo.user, self.alex)
+        self.assertEqual(photo.status, TweetPhotoStatus.PENDING)
+        self.assertEqual(self.tweet.tweetphoto_set.count(), 1)
 
 
+    def test_create_with_images(self):
+        res = self.alex_client.post(TWEET_CREATE_API, {'content': 'test file upload', 'files': []})
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 0)
 
+        file = SimpleUploadedFile(
+            name='sample.jpg',
+            content=str.encode('a fake image'),
+            content_type='image/jpeg',
+        )
+
+        res = self.alex_client.post(TWEET_CREATE_API, {'content': 'test file upload', 'files': [file]})
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 1)
+
+        file1 = SimpleUploadedFile(
+            name='sample1.jpg',
+            content=str.encode('a fake image'),
+            content_type='image/jpeg',
+        )
+        file2 = SimpleUploadedFile(
+            name='sample2.jpg',
+            content=str.encode('a fake image'),
+            content_type='image/jpeg',
+        )
+
+        res = self.alex_client.post(TWEET_CREATE_API, {'content': 'test file upload', 'files': [file1, file2]})
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 3)
+
+        
+
+        files = [SimpleUploadedFile(
+            name='sample{i}.jpg',
+            content=str.encode('a fake image'),
+            content_type='image/jpeg',
+        ) for i in range(10)]
+
+        res = self.alex_client.post(TWEET_CREATE_API, {'content': 'test file upload', 'files': [files]})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        # self.assertEqual(TweetPhoto.objects.count(), 3)
