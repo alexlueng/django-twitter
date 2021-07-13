@@ -155,8 +155,15 @@ class TweetApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['tweets'][0]['likes_count'], 2)
 
-
-
+    def test_tweet_retrieve_with_user_profile(self):
+        tweet = self.create_tweet(self.user1)
+        url = TWEET_RETRIEVE_API.format(tweet.id)
+        res = self.anonymous_client.get(url)
+        
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        profile = self.user1.profile
+        self.assertEqual(res.data['user']['nickname'], profile.nickname)
+        self.assertEqual(res.data['user']['avatar_url'], None)
 
 
 
