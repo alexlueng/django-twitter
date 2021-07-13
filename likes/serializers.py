@@ -5,11 +5,11 @@ from comments.models import Comment
 from rest_framework import serializers
 from .models import Like
 # from django.contrib.auth.models import User
-from accounts.serializers import UserSerializer
+from accounts.serializers import UserSerializerForLike
 
 class LikeSerializer(serializers.ModelSerializer):
 
-    user = UserSerializer()
+    user = UserSerializerForLike()
 
     class Meta:
         model = Like

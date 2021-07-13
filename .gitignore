@@ -134,3 +134,5 @@ dmypy.json
 # coverage
 .coverage
 htmlcov/
+
+media/
