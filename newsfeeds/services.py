@@ -1,12 +1,6 @@
 from newsfeeds.models import NewsFeed
 from friendships.models import Friendships
-
-class FriendshipService(object):
-
-    @classmethod
-    def get_followers(cls, user):
-        friendships = Friendships.objects.filter(to_user=user).prefetch_related('from_user')
-        return [friendship.from_user for friendship in friendships ]
+from friendships.services import FriendshipService
 
 class NewsFeedService(object):
     @classmethod

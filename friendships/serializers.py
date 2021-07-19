@@ -1,3 +1,4 @@
+from friendships.services import FriendshipService
 from rest_framework import serializers
 from accounts.serializers import UserSerializerForFriendship
 from rest_framework.exceptions import ValidationError
@@ -30,16 +31,27 @@ class FriendshipSerializerForCreate(serializers.ModelSerializer):
 class FollowerSerializer(serializers.ModelSerializer):
     user = UserSerializerForFriendship(source='from_user')
     created_at = serializers.DateTimeField()
+    has_followed = serializers.SerializerMethodField()
 
     class Meta:
         model = Friendships
-        fields = ('user', 'created_at')
+        fields = ('user', 'created_at', 'has_followed')
 
+    def get_has_followed(self, obj):
+        if self.context['request'].user.is_anonymous:
+            return False
+        return FriendshipService.has_followed(self.context['request'].user, obj.from_user)
 
 class FollowingSerializer(serializers.ModelSerializer):
     user = UserSerializerForFriendship(source='to_user')
     created_at = serializers.DateTimeField()
+    has_followed = serializers.SerializerMethodField()
 
     class Meta:
         model = Friendships
-        fields = ('user', 'created_at')
+        fields = ('user', 'created_at', 'has_followed')
+
+    def get_has_followed(self, obj):
+        if self.context['request'].user.is_anonymous:
+            return False
+        return FriendshipService.has_followed(self.context['request'].user, obj.to_user)

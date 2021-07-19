@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from .models import Friendships
+from .paginations import FriendshipsPagination
 
 # 这个view主要实现4个功能：我关注的人，关注我的人，关注某人，取消关注
 
@@ -13,26 +14,23 @@ class FriendshipViewSet(viewsets.GenericViewSet):
     # post /api/friendship/1/follow user_id=1
     # queryset = User.objects.all()
     # 如果是Friendships.objects.all() 会出现404
-
+    serializer_class = FriendshipSerializerForCreate
     queryset = User.objects.all()
+    pagination_class = FriendshipsPagination
     
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
     def followers(self, request, pk):
         friendships = Friendships.objects.filter(to_user_id=pk).order_by('-created_at')
-        serializer = FollowerSerializer(friendships, many=True)
-        return Response(
-            {'followers': serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        page = self.paginate_queryset(friendships)
+        serializer = FollowerSerializer(page, many=True, context={'request': request})
+        return self.get_paginated_response(serializer.data)
 
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
     def followings(self, request, pk):
         friendships = Friendships.objects.filter(from_user_id=pk).order_by('-created_at')
-        serializer = FollowingSerializer(friendships, many=True)
-        return Response(
-            {'followings': serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        page = self.paginate_queryset(friendships)
+        serializer = FollowingSerializer(page, many=True, context={'request': request})
+        return self.get_paginated_response(serializer.data)
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
     def follow(self, request, pk):

@@ -1,7 +1,9 @@
+from django.http import response
 from testing.testcases import TestCase
 from rest_framework.test import APIClient
 from .models import Friendships
 from rest_framework import status
+from .paginations import FriendshipsPagination
 
 FOLLOW_URL = '/api/friendships/{}/follow/'
 UNFOLLOW_URL = '/api/friendships/{}/unfollow/'
@@ -89,23 +91,23 @@ class FriendshipsApiTests(TestCase):
         # get is ok
         response = self.anonymous_client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['followings']), 3)
+        self.assertEqual(len(response.data['results']), 3)
         # 确保按照时间倒序
-        ts0 = response.data['followings'][0]['created_at']
-        ts1 = response.data['followings'][1]['created_at']
-        ts2 = response.data['followings'][2]['created_at']
+        ts0 = response.data['results'][0]['created_at']
+        ts1 = response.data['results'][1]['created_at']
+        ts2 = response.data['results'][2]['created_at']
         self.assertEqual(ts0 > ts1, True)
         self.assertEqual(ts1 > ts2, True)
         self.assertEqual(
-            response.data['followings'][0]['user']['username'],
+            response.data['results'][0]['user']['username'],
             'bob_following2',
         )
         self.assertEqual(
-            response.data['followings'][1]['user']['username'],
+            response.data['results'][1]['user']['username'],
             'bob_following1',
         )
         self.assertEqual(
-            response.data['followings'][2]['user']['username'],
+            response.data['results'][2]['user']['username'],
             'bob_following0',
         )
 
@@ -117,16 +119,99 @@ class FriendshipsApiTests(TestCase):
         # get is ok
         response = self.anonymous_client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['followers']), 2)
+        self.assertEqual(len(response.data['results']), 2)
         # 确保按照时间倒序
-        ts0 = response.data['followers'][0]['created_at']
-        ts1 = response.data['followers'][1]['created_at']
+        ts0 = response.data['results'][0]['created_at']
+        ts1 = response.data['results'][1]['created_at']
         self.assertEqual(ts0 > ts1, True)
         self.assertEqual(
-            response.data['followers'][0]['user']['username'],
+            response.data['results'][0]['user']['username'],
             'bob_follower1',
         )
         self.assertEqual(
-            response.data['followers'][1]['user']['username'],
+            response.data['results'][1]['user']['username'],
             'bob_follower0',
         )
+
+
+    def test_followers_pagination(self):
+        max_page_size = FriendshipsPagination.max_page_size
+        page_size = FriendshipsPagination.page_size
+        for i in range(page_size * 2):
+            follower = self.create_user('alex_follower{}'.format(i))
+            Friendships.objects.create(from_user=follower, to_user=self.alex)
+            if follower.id % 2 == 0:
+                Friendships.objects.create(from_user=self.bob, to_user=follower)
+        url = FOLLOWERS_URL.format(self.alex.id)
+        self._test_friendships_pagination(url, page_size, max_page_size)
+
+        # anonymous hasn't followed any users
+        res = self.anonymous_client.get(url, {'page': 1})
+        for result in res.data['results']:
+            self.assertEqual(result['has_followed'], False)
+        
+        # bob has followed users with even id
+        res = self.bob_client.get(url, {'page': 1})
+        for result in res.data['results']:
+            has_followed = (result['user']['id'] % 2 == 0)
+            self.assertEqual(result['has_followed'], has_followed)
+
+    def test_followings_pagination(self):
+        max_page_size = FriendshipsPagination.max_page_size
+        page_size = FriendshipsPagination.page_size
+        for i in range(page_size * 2):
+            following = self.create_user('alex_follower{}'.format(i))
+            Friendships.objects.create(from_user=self.alex, to_user=following)
+            if following.id % 2 == 0:
+                Friendships.objects.create(from_user=self.bob, to_user=following)
+        url = FOLLOWINGS_URL.format(self.alex.id)
+
+        res = self.anonymous_client.get(url, {'page': 1})
+        for result in res.data['results']:
+            self.assertEqual(result['has_followed'], False)
+        
+        res = self.bob_client.get(url, {'page': 1})
+        for result in res.data['results']:
+            has_followed = (result['user']['id'] % 2 == 0)
+            self.assertEqual(result['has_followed'], has_followed)
+
+        res = self.alex_client.get(url, {'page': 1})
+        for result in res.data['results']:
+            self.assertEqual(result['has_followed'], True)
+
+
+    def _test_friendships_pagination(self, url, page_size, max_page_size):
+        res = self.anonymous_client.get(url, {'page': 1})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), page_size)
+        self.assertEqual(res.data['total_pages'], 2)
+        self.assertEqual(res.data['total_results'], page_size * 2)
+        self.assertEqual(res.data['page_number'], 1)
+        self.assertEqual(res.data['has_next_page'], True)
+
+        res = self.anonymous_client.get(url, {'page': 2})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), page_size)
+        self.assertEqual(res.data['total_pages'], 2)
+        self.assertEqual(res.data['total_results'], page_size * 2)
+        self.assertEqual(res.data['page_number'], 2)
+        self.assertEqual(res.data['has_next_page'], False)
+
+        res = self.anonymous_client.get(url, {'page': 3})
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+        res = self.anonymous_client.get(url, {'page': 1, 'size': max_page_size+1})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), max_page_size)
+        self.assertEqual(res.data['total_pages'], 2)
+        self.assertEqual(res.data['total_results'], page_size * 2)
+        self.assertEqual(res.data['page_number'], 1)
+        self.assertEqual(res.data['has_next_page'], True)
+
+        res = self.anonymous_client.get(url, {'page': 1, 'size': 2})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), 2)
+        self.assertEqual(res.data['total_pages'], page_size)
+        self.assertEqual(res.data['total_results'], page_size * 2)
+        self.assertEqual(res.data['page_number'], 1)
+        self.assertEqual(res.data['has_next_page'], True)

@@ -1,0 +1,15 @@
+from .models import Friendships
+
+class FriendshipService(object):
+
+    @classmethod
+    def get_followers(cls, user):
+        friendships = Friendships.objects.filter(to_user=user).prefetch_related('from_user')
+        return [friendship.from_user for friendship in friendships ]
+
+    @classmethod
+    def has_followed(cls, from_user, to_user):
+        return Friendships.objects.filter(
+            from_user=from_user,
+            to_user=to_user,
+        ).exists()
