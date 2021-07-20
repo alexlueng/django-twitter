@@ -7,6 +7,7 @@ from utils.time_helpers import utc_now
 from rest_framework import status
 from .constants import TweetPhotoStatus
 from django.core.files.uploadedfile import SimpleUploadedFile
+from utils.paginations import EndlessPagination
 
 TWEET_LIST_API = '/api/tweets/'
 TWEET_CREATE_API = '/api/tweets/'
@@ -46,12 +47,12 @@ class TweetApiTests(TestCase):
 
         response = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['tweets']), 3)
+        self.assertEqual(len(response.data['results']), 3)
         response = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user2.id})
         # self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['tweets']), 2)
-        self.assertEqual(response.data['tweets'][0]['id'], self.tweet2[1].id)
-        self.assertEqual(response.data['tweets'][1]['id'], self.tweet2[0].id)
+        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(response.data['results'][0]['id'], self.tweet2[1].id)
+        self.assertEqual(response.data['results'][1]['id'], self.tweet2[0].id)
 
     def test_create_api(self):
         response = self.anonymous_client.post(TWEET_CREATE_API)
@@ -107,13 +108,13 @@ class TweetApiTests(TestCase):
 
         res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['tweets'][0]['comments_count'], 1)
+        self.assertEqual(res.data['results'][0]['comments_count'], 1)
 
 
         self.create_comment(self.user1, tweet, content='222')
         res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['tweets'][0]['comments_count'], 2)
+        self.assertEqual(res.data['results'][0]['comments_count'], 2)
 
 
     
@@ -132,11 +133,11 @@ class TweetApiTests(TestCase):
 
         res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['tweets'][0]['has_liked'], False)
+        self.assertEqual(res.data['results'][0]['has_liked'], False)
 
         res = self.user2_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['tweets'][0]['has_liked'], True)
+        self.assertEqual(res.data['results'][0]['has_liked'], True)
 
     def test_tweet_likes_count(self):
         tweet = self.create_tweet(self.user1,  "test tweet")
@@ -150,12 +151,12 @@ class TweetApiTests(TestCase):
 
         res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['tweets'][0]['likes_count'], 1)
+        self.assertEqual(res.data['results'][0]['likes_count'], 1)
 
         self.user1_client.post(LIKE_BASE_URL, payload)
         res = self.anonymous_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['tweets'][0]['likes_count'], 2)
+        self.assertEqual(res.data['results'][0]['likes_count'], 2)
 
     def test_tweet_retrieve_with_user_profile(self):
         tweet = self.create_tweet(self.user1)
@@ -167,6 +168,52 @@ class TweetApiTests(TestCase):
         self.assertEqual(res.data['user']['nickname'], profile.nickname)
         self.assertEqual(res.data['user']['avatar_url'], None)
 
+    def test_pagination(self):
+        page_size = EndlessPagination.page_size
+
+        for i in range(page_size*2 - len(self.tweet1)):
+            self.tweet1.append(self.create_tweet(self.user1, 'tweet{}'.format(i)))
+
+        tweets = self.tweet1[::-1]
+        # pull the first page
+        res = self.user1_client.get(TWEET_LIST_API, {'user_id': self.user1.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), page_size)
+        self.assertEqual(res.data['has_next_page'], True)
+        self.assertEqual(res.data['results'][0]['id'], tweets[0].id)
+        self.assertEqual(res.data['results'][1]['id'], tweets[1].id)
+        self.assertEqual(res.data['results'][page_size-1]['id'], tweets[page_size-1].id)
+
+        # pull the second page
+        res = self.user1_client.get(TWEET_LIST_API, {
+            'created_at__lt': tweets[page_size-1].created_at,
+            'user_id': self.user1.id,
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), page_size)
+        self.assertEqual(res.data['has_next_page'], False)
+        self.assertEqual(res.data['results'][0]['id'], tweets[page_size].id)
+        self.assertEqual(res.data['results'][1]['id'], tweets[page_size+1].id)
+        self.assertEqual(res.data['results'][page_size-1]['id'], tweets[2*page_size-1].id)
+
+        # pull the latest newsfeeds
+        res = self.user1_client.get(TWEET_LIST_API, {
+            'created_at__gt': tweets[0].created_at,
+            'user_id': self.user1.id,
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['has_next_page'], False)
+        self.assertEqual(len(res.data['results']), 0)
+
+        new_tweet = self.create_tweet(self.user1, 'a new tweet')
+        res = self.user1_client.get(TWEET_LIST_API, {
+            'created_at__gt': tweets[0].created_at,
+            'user_id': self.user1.id,
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['has_next_page'], False)
+        self.assertEqual(len(res.data['results']), 1)
+        self.assertEqual(res.data['results'][0]['id'], new_tweet.id)
 
 class TweetPhotoApiTests(TestCase):
 
@@ -228,3 +275,6 @@ class TweetPhotoApiTests(TestCase):
         res = self.alex_client.post(TWEET_CREATE_API, {'content': 'test file upload', 'files': [files]})
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         # self.assertEqual(TweetPhoto.objects.count(), 3)
+
+    
+

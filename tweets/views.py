@@ -5,6 +5,7 @@ from .models import Tweet
 from .serializers import TweetSerializer, TweetCreateSerializer, TweetSerializerForDetail
 from newsfeeds.services import NewsFeedService
 from utils.decorator import required_params
+from utils.paginations import EndlessPagination
 
 
 class TweetViewSet(viewsets.GenericViewSet, 
@@ -12,6 +13,7 @@ class TweetViewSet(viewsets.GenericViewSet,
                     viewsets.mixins.ListModelMixin):
     queryset = Tweet.objects.all()
     serializer_class = TweetCreateSerializer
+    pagination_class = EndlessPagination
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -41,8 +43,9 @@ class TweetViewSet(viewsets.GenericViewSet,
         #     return Response('missing user_id', status=400)
 
         tweets = Tweet.objects.filter(user_id=request.query_params['user_id']).order_by('-created_at')
-        serializer = TweetSerializer(tweets, context={'request': request}, many=True)
-        return Response({'tweets': serializer.data})
+        page = self.paginate_queryset(tweets)
+        serializer = TweetSerializer(page, context={'request': request}, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
     # 获取一条带评论的tweet
