@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from .models import Friendships
 from .paginations import FriendshipsPagination
+from .services import FriendshipService
 
 # 这个view主要实现4个功能：我关注的人，关注我的人，关注某人，取消关注
 
@@ -51,6 +52,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer.save()
+        FriendshipService.invalidate_following_cache(request.user.id)
         return Response({
                 'success': True,
             }, status=status.HTTP_201_CREATED)
@@ -64,6 +66,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         deleted, _ = Friendships.objects.filter(from_user=request.user, to_user=pk).delete()
+        FriendshipService.invalidate_following_cache(request.user.id)
         return Response({
                 'success': True,
                 'deleted': deleted,

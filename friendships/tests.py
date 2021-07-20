@@ -1,3 +1,4 @@
+from friendships.services import FriendshipService
 from django.http import response
 from testing.testcases import TestCase
 from rest_framework.test import APIClient
@@ -15,6 +16,7 @@ class FriendshipsApiTests(TestCase):
 
     def setUp(self):
         # self._anonymous_client = APIClient()
+        self.clear_cache()
 
         self.alex = self.create_user('alex')
         self.alex_client = APIClient()
@@ -215,3 +217,27 @@ class FriendshipsApiTests(TestCase):
         self.assertEqual(res.data['total_results'], page_size * 2)
         self.assertEqual(res.data['page_number'], 1)
         self.assertEqual(res.data['has_next_page'], True)
+
+
+class FriendshipServiceTests(TestCase):
+
+    def setUp(self):
+        self.clear_cache()
+        self.alex = self.create_user('alex')
+        self.bob = self.create_user('bob')
+
+    def test_get_followings(self):
+        user1 = self.create_user('user1')
+        user2 = self.create_user('user2')
+
+        for to_user in [user1, user2, self.bob]:
+            Friendships.objects.create(from_user=self.alex, to_user=to_user)
+        FriendshipService.invalidate_following_cache(self.alex.id)
+
+        user_id_set = FriendshipService.get_following_user_id_set(self.alex.id)
+        self.assertEqual(user_id_set, {user1.id, user2.id, self.bob.id})
+
+        Friendships.objects.filter(from_user=self.alex, to_user=self.bob).delete()
+        FriendshipService.invalidate_following_cache(self.alex.id)
+        user_id_set = FriendshipService.get_following_user_id_set(self.alex.id)
+        self.assertEqual(user_id_set, {user1.id, user2.id})
