@@ -10,6 +10,9 @@ POST_TWEETS_URL = '/api/tweets/'
 FOLLOW_URL = '/api/friendships/{}/follow/'
 class NewsFeedApiTest(TestCase):
     def setUp(self):
+
+        self.clear_cache()
+
         self.alex = self.create_user('alex')
         self.alex_client = APIClient()
         self.alex_client.force_authenticate(self.alex)
@@ -112,3 +115,53 @@ class NewsFeedApiTest(TestCase):
         self.assertEqual(response.data['has_next_page'], False)
         self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['id'], new_newsfeed.id)
+
+
+    def test_user_cache(self):
+        profile = self.bob.profile
+        profile.nickname = 'unclebob'
+        profile.save()
+
+        self.assertEqual(self.bob.username, 'bob')
+        self.create_newsfeed(self.bob, self.create_tweet(self.bob))
+        self.create_newsfeed(self.bob, self.create_tweet(self.alex))
+
+        res = self.bob_client.get(NEWSFEEDS_URL)
+        results = res.data['results']
+        self.assertEqual(results[0]['tweet']['user']['username'], 'alex')
+        self.assertEqual(results[1]['tweet']['user']['nickname'], 'unclebob')
+        self.assertEqual(results[1]['tweet']['user']['username'], 'bob')
+
+        self.alex.username = 'alexlueng'
+        self.alex.save()
+        profile.nickname = 'bob martin'
+        profile.save()
+
+        res = self.bob_client.get(NEWSFEEDS_URL)
+        results = res.data['results']
+        self.assertEqual(results[0]['tweet']['user']['username'], 'alexlueng')
+        self.assertEqual(results[1]['tweet']['user']['nickname'], 'bob martin')
+        self.assertEqual(results[1]['tweet']['user']['username'], 'bob')
+
+
+    def test_tweet_cache(self):
+        tweet = self.create_tweet(self.alex, 'content1')
+        self.create_newsfeed(self.bob, tweet)
+        response = self.bob_client.get(NEWSFEEDS_URL)
+        results = response.data['results']
+        self.assertEqual(results[0]['tweet']['user']['username'], 'alex')
+        self.assertEqual(results[0]['tweet']['content'], 'content1')
+
+        # update username
+        self.alex.username = 'alexlueng'
+        self.alex.save()
+        response = self.bob_client.get(NEWSFEEDS_URL)
+        results = response.data['results']
+        self.assertEqual(results[0]['tweet']['user']['username'], 'alexlueng')
+
+        # update content
+        tweet.content = 'content2'
+        tweet.save()
+        response = self.bob_client.get(NEWSFEEDS_URL)
+        results = response.data['results']
+        self.assertEqual(results[0]['tweet']['content'], 'content2')

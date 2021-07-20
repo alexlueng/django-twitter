@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from tweets.models import Tweet
+from utils.memcached_helper import MemcachedHelper
 class NewsFeed(models.Model):
     
     # 这个user不是谁发了这条推文，而是谁可以看到这条推文
@@ -15,5 +16,8 @@ class NewsFeed(models.Model):
 
     def __str__(self) -> str:
         return f'{self.created_at} index of {self.user}: {self.tweet}'
+
+    def cached_tweet(self):
+        return MemcachedHelper.get_object_through_cache(Tweet, self.tweet_id)
 
     

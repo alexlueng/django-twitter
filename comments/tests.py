@@ -35,6 +35,9 @@ class CommentModelTests(TestCase):
 
 class CommentApiTests(TestCase):
     def setUp(self):
+
+        self.clear_cache()
+
         self.alex = self.create_user('alex')
         self.alex_client = APIClient()
         self.bob = self.create_user('bob')

@@ -67,6 +67,8 @@ class NotificationTests(TestCase):
 class NotificationApiTests(TestCase):
 
     def setUp(self):
+
+        self.clear_cache()
         
         self.alex = self.create_user('alex')
         self.alex_client = APIClient()

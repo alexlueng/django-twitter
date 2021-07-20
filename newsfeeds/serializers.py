@@ -3,7 +3,7 @@ from .models import NewsFeed
 from tweets.serializers import TweetSerializer
 
 class NewsFeedSerializer(serializers.ModelSerializer):
-    tweet = TweetSerializer()
+    tweet = TweetSerializer(source='cached_tweet')
 
     class Meta:
         model = NewsFeed

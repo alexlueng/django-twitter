@@ -14,6 +14,9 @@ USER_PROFILE_DETAIL_URL = '/api/profiles/{}/'
 class AccountApiTests(TestCase):
 
     def setUp(self):
+
+        self.clear_cache()
+
         # 这个函数会在每个 test function 执行的时候被执行
         self.client = APIClient()
         self.user = self.create_user(
@@ -135,6 +138,9 @@ class AccountApiTests(TestCase):
 class UserProfileTests(TestCase):
 
     def setUp(self):
+
+        self.clear_cache()
+
         self.alex = self.create_user('alex')
         self.alex_client = APIClient()
         self.alex_client.force_authenticate(self.alex)

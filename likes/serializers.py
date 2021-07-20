@@ -9,7 +9,7 @@ from accounts.serializers import UserSerializerForLike
 
 class LikeSerializer(serializers.ModelSerializer):
 
-    user = UserSerializerForLike()
+    user = UserSerializerForLike(source='cached_user')
 
     class Meta:
         model = Like

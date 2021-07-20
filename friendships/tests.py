@@ -232,12 +232,12 @@ class FriendshipServiceTests(TestCase):
 
         for to_user in [user1, user2, self.bob]:
             Friendships.objects.create(from_user=self.alex, to_user=to_user)
-        FriendshipService.invalidate_following_cache(self.alex.id)
+        # FriendshipService.invalidate_following_cache(self.alex.id)
 
         user_id_set = FriendshipService.get_following_user_id_set(self.alex.id)
         self.assertEqual(user_id_set, {user1.id, user2.id, self.bob.id})
 
         Friendships.objects.filter(from_user=self.alex, to_user=self.bob).delete()
-        FriendshipService.invalidate_following_cache(self.alex.id)
+        # FriendshipService.invalidate_following_cache(self.alex.id)
         user_id_set = FriendshipService.get_following_user_id_set(self.alex.id)
         self.assertEqual(user_id_set, {user1.id, user2.id})

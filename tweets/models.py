@@ -1,11 +1,12 @@
 from tweets.constants import TWEET_PHOTO_STATUS_CHOICES, TweetPhotoStatus
-from typing import Set
 from django.db import models
 from django.contrib.auth.models import User
 from likes.models import Like
 from django.contrib.contenttypes.models import ContentType
-
 from utils.time_helpers import utc_now
+from utils.memcached_helper import MemcachedHelper
+from django.db.models.signals import post_save, pre_delete
+from utils.listeners import invalidate_object_cache
 
 class Tweet(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -30,6 +31,9 @@ class Tweet(models.Model):
             object_id=self.id,
         ).order_by('-created_at')
 
+    @property
+    def cached_user(self):
+        return MemcachedHelper.get_object_through_cache(User, self.user_id)
 
 class TweetPhoto(models.Model):
     tweet = models.ForeignKey(Tweet, on_delete=models.SET_NULL, null=True)
@@ -57,3 +61,7 @@ class TweetPhoto(models.Model):
 
     def __srt__(self):
         return f'{self.tweet_id}: {self.file}'
+
+
+pre_delete.connect(invalidate_object_cache, sender=Tweet)
+post_save.connect(invalidate_object_cache, sender=Tweet)
