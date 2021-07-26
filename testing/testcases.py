@@ -8,6 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.cache import caches
 
 from rest_framework.test import APIClient
+from utils.redis_client import RedisClient
 
 class TestCase(DjangoTestCase):
 
@@ -19,6 +20,7 @@ class TestCase(DjangoTestCase):
         return self._anonymous_client
 
     def clear_cache(self):
+        RedisClient.clear()
         caches['testing'].clear()
 
     def create_user(self, username, email=None, password=None):

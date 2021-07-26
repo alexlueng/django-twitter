@@ -169,6 +169,11 @@ CACHES = {
     }
 }
 
+REDIS_HOST = '192.168.56.101'
+REDIS_PORT = '6379'
+REDIS_DB = 0 if TESTING else 1
+REDIS_KEY_EXPIRE_TIME = 7 * 86400
+
 try:
     from .local_settings import *
 except:

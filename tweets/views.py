@@ -8,9 +8,7 @@ from utils.decorator import required_params
 from utils.paginations import EndlessPagination
 
 
-class TweetViewSet(viewsets.GenericViewSet, 
-                    viewsets.mixins.CreateModelMixin,
-                    viewsets.mixins.ListModelMixin):
+class TweetViewSet(viewsets.GenericViewSet):
     queryset = Tweet.objects.all()
     serializer_class = TweetCreateSerializer
     pagination_class = EndlessPagination
