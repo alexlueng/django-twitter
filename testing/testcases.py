@@ -4,6 +4,7 @@ from tweets.models import Tweet
 from comments.models import Comment
 from likes.models import Like
 from newsfeeds.models import NewsFeed
+from friendships.models import Friendships
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import caches
 
@@ -55,3 +56,6 @@ class TestCase(DjangoTestCase):
 
     def create_newsfeed(self, user, tweet):
         return NewsFeed.objects.create(user=user, tweet=tweet)
+
+    def create_friendships(self, from_user, to_user):
+        return Friendships.objects.create(from_user=from_user, to_user=to_user)

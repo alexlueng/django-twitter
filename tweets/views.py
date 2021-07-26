@@ -8,7 +8,6 @@ from utils.decorator import required_params
 from utils.paginations import EndlessPagination
 from .services import TweetService
 
-
 class TweetViewSet(viewsets.GenericViewSet):
     queryset = Tweet.objects.all()
     serializer_class = TweetCreateSerializer
@@ -41,8 +40,14 @@ class TweetViewSet(viewsets.GenericViewSet):
         # if 'user_id' not in request.query_params:
         #     return Response('missing user_id', status=400)
 
-        tweets = TweetService.get_cached_tweets(user_id=request.query_params['user_id'])
-        page = self.paginate_queryset(tweets)
+        user_id = request.query_params['user_id']
+        cached_tweets = TweetService.get_cached_tweets(user_id)
+
+        # tweets = TweetService.get_cached_tweets(user_id=request.query_params['user_id'])
+        page = self.paginator.paginate_cached_list(cached_tweets, request)
+        if page is None:
+            queryset = Tweet.objects.filter(user_id=user_id)
+            page = self.paginate_queryset(queryset)
         serializer = TweetSerializer(page, context={'request': request}, many=True)
         return self.get_paginated_response(serializer.data)
 

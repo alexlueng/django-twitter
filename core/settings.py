@@ -173,6 +173,7 @@ REDIS_HOST = '192.168.56.101'
 REDIS_PORT = '6379'
 REDIS_DB = 0 if TESTING else 1
 REDIS_KEY_EXPIRE_TIME = 7 * 86400
+REDIS_LIST_LENGTH_LIMIT = 1000 if not TESTING else 20
 
 try:
     from .local_settings import *
