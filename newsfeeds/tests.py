@@ -1,9 +1,13 @@
+from core.cache import USER_NEWSFEEDS_PATTERN
 from testing.testcases import TestCase
 from newsfeeds.models import NewsFeed
 from friendships.models import Friendships
 from rest_framework.test import APIClient
 from rest_framework import status
 from utils.paginations import EndlessPagination
+from .services import NewsFeedService
+from utils.redis_client import RedisClient
+
 
 NEWSFEEDS_URL = '/api/newsfeeds/'
 POST_TWEETS_URL = '/api/tweets/'
@@ -165,3 +169,49 @@ class NewsFeedApiTest(TestCase):
         response = self.bob_client.get(NEWSFEEDS_URL)
         results = response.data['results']
         self.assertEqual(results[0]['tweet']['content'], 'content2')
+
+
+class NewsfeedServiceTests(TestCase):
+
+    def setUp(self):
+        self.clear_cache()
+        self.alex = self.create_user('alex')
+        self.bob = self.create_user('bob')
+
+    def test_get_user_newsfeeds(self):
+        newsfeed_ids = []
+        for i in range(3):
+            tweet = self.create_tweet(self.bob)
+            newsfeed = self.create_newsfeed(self.alex, tweet)
+            newsfeed_ids.append(newsfeed.id)
+        newsfeed_ids = newsfeed_ids[::-1]
+
+        # cache miss
+        newfeeds = NewsFeedService.get_cached_newsfeeds(self.alex.id)
+        self.assertEqual([f.id for f in newfeeds], newsfeed_ids)
+
+        # cache hit
+        newfeeds = NewsFeedService.get_cached_newsfeeds(self.alex.id)
+        self.assertEqual([f.id for f in newfeeds], newsfeed_ids)
+
+        # cache update
+        tweet = self.create_tweet(self.bob)
+        new_newsfeed = self.create_newsfeed(self.alex, tweet)
+        newsfeeds = NewsFeedService.get_cached_newsfeeds(self.alex.id)
+        newsfeed_ids.insert(0, new_newsfeed.id)
+        self.assertEqual([f.id for f in newsfeeds], newsfeed_ids)
+
+    def test_create_new_newsfeed_before_get_cached_newsfeeds(self):
+        feed1 = self.create_newsfeed(self.alex, self.create_tweet(self.alex))
+
+        RedisClient.clear()
+        conn = RedisClient.get_connection()
+
+        key = USER_NEWSFEEDS_PATTERN.format(user_id=self.alex.id)
+        self.assertEqual(conn.exists(key), False)
+
+        feed2 = self.create_newsfeed(self.alex, self.create_tweet(self.alex))
+        self.assertEqual(conn.exists(key), True)
+
+        feeds = NewsFeedService.get_cached_newsfeeds(self.alex.id)
+        self.assertEqual([f.id for f in feeds], [feed2.id, feed1.id])

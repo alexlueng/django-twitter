@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from tweets.models import Tweet
 from utils.memcached_helper import MemcachedHelper
+from django.db.models.signals import post_save
+from .listeners import push_newsfeed_to_cache
 class NewsFeed(models.Model):
     
     # 这个user不是谁发了这条推文，而是谁可以看到这条推文
@@ -21,3 +23,4 @@ class NewsFeed(models.Model):
         return MemcachedHelper.get_object_through_cache(Tweet, self.tweet_id)
 
     
+post_save.connect(push_newsfeed_to_cache, NewsFeed)
