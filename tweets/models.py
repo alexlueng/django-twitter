@@ -14,6 +14,9 @@ class Tweet(models.Model):
     content = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    likes_count = models.IntegerField(default=0, null=True)
+    comments_count = models.IntegerField(default=0, null=True)
+
     class Meta:
         index_together = (('user', 'created_at'),)
         ordering = ('user', '-created_at')
@@ -50,7 +53,7 @@ class TweetPhoto(models.Model):
     has_deleted = models.BooleanField(default=False) # 软删除，真正的删除在后台异步执行
     deleted_at = models.DateTimeField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+   
 
     class Meta:
         index_together = (

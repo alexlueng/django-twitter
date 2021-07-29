@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 LIKE_BASE_URL = '/api/likes/'
 LIKE_CANCEL_URL = '/api/likes/cancel/'
+TWEET_DETAIL_URL = '/api/tweets/{}/'
 class LikeModelTest(TestCase):
 
     def test_like_str(self):
@@ -105,6 +106,24 @@ class LikeApiTests(TestCase):
         res = self.alex_client.post(LIKE_CANCEL_URL, payload)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(self.comment.like_set.count(), 0)
+
+    
+    def test_likes_count(self):
+        tweet = self.create_tweet(self.alex)
+        data = {'content_type': 'tweet', 'object_id': tweet.id}
+        self.alex_client.post(LIKE_BASE_URL, data)
+
+        tweet_url = TWEET_DETAIL_URL.format(data)
+        res = self.alex_client.get(tweet_url)
+        self.assertEqual(res.data['likes_count'], 1)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 1)
+
+        self.alex_client.post(LIKE_BASE_URL + 'cancel/', data)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 0)
+        res = self.bob_client.get(tweet_url)
+        self.assertEqual(res.data['like_count'], 0)
 
 
     

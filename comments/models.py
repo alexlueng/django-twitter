@@ -6,6 +6,9 @@ from tweets.models import Tweet
 from likes.models import Like
 
 from utils.memcached_helper import MemcachedHelper
+
+from django.db.models.signals import pre_delete, post_save
+from .listeners import incr_comments_count, decr_comments_count
 class Comment(models.Model):
     user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     tweet = models.ForeignKey(Tweet, null=True, on_delete=models.SET_NULL)
@@ -35,3 +38,7 @@ class Comment(models.Model):
     @property
     def cache_user(self):
         return MemcachedHelper.get_object_through_cache(User, self.user_id)
+
+
+pre_delete.connect(decr_comments_count, Comment)
+post_save.connect(incr_comments_count, Comment)
