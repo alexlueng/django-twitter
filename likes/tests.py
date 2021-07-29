@@ -113,7 +113,7 @@ class LikeApiTests(TestCase):
         data = {'content_type': 'tweet', 'object_id': tweet.id}
         self.alex_client.post(LIKE_BASE_URL, data)
 
-        tweet_url = TWEET_DETAIL_URL.format(data)
+        tweet_url = TWEET_DETAIL_URL.format(tweet.id)
         res = self.alex_client.get(tweet_url)
         self.assertEqual(res.data['likes_count'], 1)
         tweet.refresh_from_db()
@@ -123,7 +123,51 @@ class LikeApiTests(TestCase):
         tweet.refresh_from_db()
         self.assertEqual(tweet.likes_count, 0)
         res = self.bob_client.get(tweet_url)
-        self.assertEqual(res.data['like_count'], 0)
+        self.assertEqual(res.data['likes_count'], 0)
+
+
+    def test_likes_count_with_cache(self):
+        tweet = self.create_tweet(self.alex)
+        self.create_newsfeed(self.alex, tweet)
+        self.create_newsfeed(self.bob, tweet)
+
+        data = {'content_type': 'tweet', 'object_id': tweet.id}
+        tweet_url = TWEET_DETAIL_URL.format(tweet.id)
+        for i in range(3):
+            user = self.create_user('user{}'.format(i))
+            user_client = APIClient()
+            user_client.force_authenticate(user)
+            
+            user_client.post(LIKE_BASE_URL, data)
+
+            res = user_client.get(tweet_url)
+            self.assertEqual(res.data['likes_count'], i+1)
+            tweet.refresh_from_db()
+            self.assertEqual(tweet.likes_count, i+1)
+
+        self.bob_client.post(LIKE_BASE_URL, data)
+        res = self.bob_client.get(tweet_url)
+        self.assertEqual(res.data['likes_count'], 4)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 4)
+
+        # check newsfeed api
+        newsfeed_url = '/api/newsfeeds/'
+        res = self.alex_client.get(newsfeed_url)
+        self.assertEqual(res.data['results'][0]['tweet']['likes_count'], 4) 
+        res = self.bob_client.get(newsfeed_url)
+        self.assertEqual(res.data['results'][0]['tweet']['likes_count'], 4) 
+
+        # bob cancel like
+        self.bob_client.post(LIKE_BASE_URL+'cancel/', data)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 3)
+        res = self.alex_client.get(tweet_url)
+        self.assertEqual(res.data['likes_count'], 3)
+        res = self.alex_client.get(newsfeed_url)
+        self.assertEqual(res.data['results'][0]['tweet']['likes_count'], 3)
+        res = self.bob_client.get(newsfeed_url)
+        self.assertEqual(res.data['results'][0]['tweet']['likes_count'], 3) 
 
 
     
