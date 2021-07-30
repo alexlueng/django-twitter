@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 import sys
 from pathlib import Path
 
+from kombu import Queue
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -181,6 +183,10 @@ REDIS_LIST_LENGTH_LIMIT = 1000 if not TESTING else 20
 CELERY_BROKER_URL = 'redis://192.168.56.101:6379/2' if not TESTING else 'redis://192.168.56.101:6379/0'
 CELERY_TIMEZONE = "UTC"
 CELERY_TASK_ALWAYS_EAGER = TESTING
+CELERY_QUEUES = (
+    Queue('default', routing_key='default'),
+    Queue('newsfeeds', routing_key='newsfeeds'),
+)
 
 try:
     from .local_settings import *
