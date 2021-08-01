@@ -1,4 +1,4 @@
-from rest_framework import serializers, status, viewsets
+from rest_framework import viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import Tweet
@@ -7,6 +7,8 @@ from newsfeeds.services import NewsFeedService
 from utils.decorator import required_params
 from utils.paginations import EndlessPagination
 from .services import TweetService
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 class TweetViewSet(viewsets.GenericViewSet):
     queryset = Tweet.objects.all()
@@ -19,6 +21,8 @@ class TweetViewSet(viewsets.GenericViewSet):
         return [IsAuthenticated()]
 
     # 用户创建一条推文
+    @method_decorator(ratelimit(key='user', rate='1/s', method='POST', block=True))
+    @method_decorator(ratelimit(key='user', rate='5/m', method='POST', block=True))
     def create(self, request, *args, **kwargs):
         serializer = TweetCreateSerializer(
             data=request.data,
@@ -53,6 +57,7 @@ class TweetViewSet(viewsets.GenericViewSet):
 
 
     # 获取一条带评论的tweet
+    @method_decorator(ratelimit(key='user_or_ip', rate='5/s', method='GET', block=True))
     def retrieve(self, request, *args, **kwargs):
         tweet = self.get_object()
         return Response(TweetSerializerForDetail(tweet, context={'request': request}).data)

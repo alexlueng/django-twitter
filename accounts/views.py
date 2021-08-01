@@ -1,11 +1,8 @@
 from accounts.models import UserProfile
 from django.contrib.auth.models import User
 from rest_framework import viewsets
-from rest_framework import serializers
 from rest_framework.decorators import action
-from rest_framework import permissions
 from rest_framework.response import Response
-from rest_framework.serializers import Serializer
 from accounts.serializers import LoginSerializer, SignupSerializer, UserProfileSerializerForUpdate, UserSerializer
 from django.contrib.auth import (
     authenticate as django_authenticate,
@@ -13,6 +10,8 @@ from django.contrib.auth import (
     logout as django_logout,
 )
 from utils.permissions import IsObjectOwner
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 # Create your views here.
 #TODO: 加入jwt djangorestframework auth加强认证
@@ -40,12 +39,14 @@ class AccountViewSet(viewsets.ViewSet):
         return Response(data)
 
     @action(methods=['POST'], detail=False)
+    @method_decorator(ratelimit(key='ip', rate='3/s', method='POST', block=True))
     def logout(self, request):
         django_logout(request)
         return Response({'success': True})
 
 
     @action(methods=['POST'], detail=False)
+    @method_decorator(ratelimit(key='ip', rate='3/s', method='POST', block=True))
     def login(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -101,6 +102,7 @@ class AccountViewSet(viewsets.ViewSet):
             }, status=201)
 
     @action(methods=['GET'], detail=False)
+    @method_decorator(ratelimit(key='ip', rate='3/s', method='GET', block=True))
     def login_status(self, request, *args, **kwargs):
         data = {'has_logged_in': request.user.is_authenticated}
         if request.user.is_authenticated:

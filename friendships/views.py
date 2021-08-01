@@ -1,13 +1,14 @@
 from .serializers import FollowerSerializer, FollowingSerializer, FriendshipSerializerForCreate
-from rest_framework import serializers, status, viewsets
-from rest_framework.decorators import permission_classes
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from .models import Friendships
 from .paginations import FriendshipsPagination
-from .services import FriendshipService
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
+
 
 # 这个view主要实现4个功能：我关注的人，关注我的人，关注某人，取消关注
 
@@ -20,6 +21,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
     pagination_class = FriendshipsPagination
     
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
+    @method_decorator(ratelimit(key='user_or_ip', rate='3/s', method='GET', block=True))
     def followers(self, request, pk):
         friendships = Friendships.objects.filter(to_user_id=pk).order_by('-created_at')
         page = self.paginate_queryset(friendships)
@@ -27,6 +29,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(serializer.data)
 
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
+    @method_decorator(ratelimit(key='user_or_ip', rate='3/s', method='GET', block=True))
     def followings(self, request, pk):
         friendships = Friendships.objects.filter(from_user_id=pk).order_by('-created_at')
         page = self.paginate_queryset(friendships)
@@ -34,6 +37,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(serializer.data)
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
+    @method_decorator(ratelimit(key='user', rate='10/s', method='POST', block=True))
     def follow(self, request, pk):
         if Friendships.objects.filter(from_user=request.user, to_user=pk).exists():
             return Response({
@@ -58,6 +62,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
             }, status=status.HTTP_201_CREATED)
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
+    @method_decorator(ratelimit(key='user', rate='10/s', method='POST', block=True))
     def unfollow(self, request, pk):
         if request.user.id == int(pk):
             return Response({

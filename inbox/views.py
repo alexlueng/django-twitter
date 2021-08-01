@@ -5,6 +5,8 @@ from rest_framework.response import Response
 
 from .serializers import NotificationSerializer, NotificationSerializerForUpdate
 from utils.decorator import required_params
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 
 class NotificationViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelMixin):
@@ -16,6 +18,7 @@ class NotificationViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelMixi
         return self.request.user.notifications.all()
 
     @action(methods=['GET'], detail=False, url_path='unread-count')
+    @method_decorator(ratelimit(key='user', rate='3/s', method='GET', block=True))
     def unread_count(self, request, *args, **kwargs):
         count = self.get_queryset().filter(unread=True).count()
         return Response(
@@ -24,6 +27,7 @@ class NotificationViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelMixi
         )
 
     @action(methods=['POST'], detail=False, url_path='mark-all-as-read')
+    @method_decorator(ratelimit(key='user', rate='3/s', method='POST', block=True))
     def mark_all_as_read(self, request, *args, **kwargs):
         updated_count = self.get_queryset().update(unread=False)
         return Response(
@@ -32,6 +36,7 @@ class NotificationViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelMixi
         )
 
     @required_params(method='POST', params=['unread'])
+    @method_decorator(ratelimit(key='user', rate='3/s', method='POST', block=True))
     def update(self, request, *args, **kwargs):
 
         serializer = NotificationSerializerForUpdate(
